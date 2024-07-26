@@ -7,36 +7,22 @@ __version__ = '1.0.20240726'  # Major.Minor.Patch
 # write <stdin> to the filename given in the uudecode "begin" header
 
 import sys
+import binascii
 
-def uudecode_line(line):
-    """Decode a single UUencoded line into binary data."""
-    if len(line) < 2:
-        return b''
-    
-    # The first character indicates the length of the decoded data
-    length_char = line[0]
-    length = ord(length_char) - 32
-    
-    # Decode the rest of the line
-    encoded_data = line[1:]
-    
-    # Convert the encoded data to binary form
-    binary_data = bytearray()
-    buffer = 0
-    buffer_len = 0
-    
-    for char in encoded_data:
-        buffer = (buffer << 6) | (ord(char) - 32)
-        buffer_len += 6
-        
-        while buffer_len >= 8:
-            buffer_len -= 8
-            binary_data.append((buffer >> buffer_len) & 0xFF)
-    
-    return binary_data[:length]
+# UUencode and Base64 character sets
+UUENCODE_CHARS = b'`!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_'
+BASE64_CHARS = b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+# Create translation dictionary
+translation_dict = {UUENCODE_CHARS[i]: BASE64_CHARS[i] for i in range(len(UUENCODE_CHARS))}
+
+def uuencode_to_base64(uuencoded_bytes):
+    """Translate UUencoded bytes to Base64 bytes using the translation dictionary."""
+    return bytes(translation_dict.get(b, b) for b in uuencoded_bytes)
 
 # Read the header line to get the filename
-header_line = input().strip()
+header_line = input("Paste/upload your uuencode data now, commending with \x1b[32;1mbegin ... filename\x1b[0m and ending with \x1b[32;1mend\x1b[0m\n").strip()
+#header_line = sys.stdin.readline().strip()
 if not header_line.startswith('begin '):
     print("Invalid header line. Expected 'begin filename'.", file=sys.stderr)
     sys.exit(1)
@@ -49,25 +35,35 @@ try:
     with open(filename, 'wb') as file:
         while True:
             # Read a line of UUencoded data
-            line = input().strip()
+            #line = sys.stdin.readline().strip()
+            line = input()
 
-            if line == "end" or line == "`":
+            if line == "end":
                 break
 
-            if len(line) == 0:
+            if len(line) == 0 or line == "`":
                 continue
 
-            # Decode the line and write to the file
-            decoded_data = uudecode_line(line)
-            
-            # Validate length of decoded data
-            length = ord(line[0]) - 32
-            if length != len(decoded_data):
-                print(f"Warning: Length specified ({length}) does not match the actual decoded length ({len(decoded_data)}).", file=sys.stderr)
+            # Calculate expected length from the first character
+            expected_length = ord(line[0]) - 32
 
-            # Write the required number of bytes to the file
+            # Remove the length character from the line
+            encoded_data = line[1:].encode()
+
+            # Translate the line to Base64
+            base64_data = uuencode_to_base64(encoded_data)
+
+            # Decode the Base64 data
+            decoded_data = binascii.a2b_base64(base64_data)
+
+            # Validate the length of the decoded data
+            if len(decoded_data) != expected_length:
+                print(f"Warning: Length specified ({expected_length}) does not match the actual decoded length ({len(decoded_data)}).", file=sys.stderr)
+
+            # Write the decoded data to the file
             try:
-                file.write(decoded_data)
+                #file.write(decoded_data)
+                file.write(decoded_data[:expected_length])
             except Exception as e:
                 print(f"Error writing to file: {e}", file=sys.stderr)
                 break
@@ -76,4 +72,6 @@ try:
 
 except Exception as e:
     print(f"An error occurred: {e}", file=sys.stderr)
+
+del sys.modules['uudecode']  # so another import will work again.
 
