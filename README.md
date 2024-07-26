@@ -1,6 +1,6 @@
 # uudecode  (a micropython uudecoder)
 
-Takes input from python input() aka <stdin> and writes it out to the file named in the uudecode "begin" header.
+Takes input from python input() aka `<stdin>` and writes it out to the file named in the uudecode "begin" header.
 
 ## How to install
 
