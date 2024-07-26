@@ -51,7 +51,7 @@ try:
             # Read a line of UUencoded data
             line = input().strip()
 
-            if line == "end" or line == "'":
+            if line == "end" or line == "`":
                 break
 
             if len(line) == 0:
